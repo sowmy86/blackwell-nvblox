@@ -1,0 +1,42 @@
+name: Build and Test Patches
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.8.0-devel-ubuntu24.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        apt-get update && apt-get install -y \
+          git cmake make gcc-13 g++-13 \
+          libgoogle-glog-dev libeigen3-dev \
+          python3-pip python3-dev python3-setuptools
+
+    - name: Set up GCC 13
+      run: |
+        update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+        update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+    - name: Run Build Script
+      run: |
+        # Use a temporary install prefix for CI
+        chmod +x build.sh
+        ./build.sh /tmp/nvblox_ci 120
+      env:
+        PIP_BREAK_SYSTEM_PACKAGES: 1 # Required for Ubuntu 24.04 system pip
+
+    - name: Verify Installation
+      run: |
+        ls -R /tmp/nvblox_ci
+        # Basic check for a key header file
+        test -f /tmp/nvblox_ci/include/nvblox/nvblox.h
